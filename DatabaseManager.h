@@ -4,6 +4,9 @@
 #include <QObject>
 #include <QtSql>
 #include <QDateTime>
+#include <QSqlRecord>  // Added missing include
+#include <QSqlQuery>   // Added missing include
+#include <QSqlError>   // Added missing include
 
 class DatabaseManager : public QObject
 {
@@ -14,6 +17,9 @@ public:
 
     bool open();
     void close();
+
+    // Add this method to get database connection
+    QSqlDatabase getDatabase() const { return m_db; }
 
     // CLIENT CRUD
     bool addClient(const QString &nom, const QString &prenom, const QString &email,
