@@ -21,6 +21,8 @@
 #include <QFrame>
 #include <QScrollArea>
 #include <QSpacerItem>
+#include <QPrinter>
+#include <QTextDocument>
 
 // QtCharts includes
 #include <QtCharts>
@@ -54,6 +56,9 @@ private slots:
     void deleteSelectedClient();
     void saveClient();
     void cancelClientEdit();
+    void exportClientsPDF(); // New PDF export for clients
+    void showClientAnalytics(); // New client analytics
+    void showClientDetails(); // New client details
 
     // Commande slots
     void addNewCommande();
@@ -63,6 +68,7 @@ private slots:
     void deleteSelectedCommande();
     void saveCommande();
     void cancelCommandeEdit();
+    void exportCommandesPDF(); // PDF export for commands
     void showStatistics();
 
 private:
@@ -77,6 +83,7 @@ private:
     void applyModernTableStyle(QTableWidget *table);
     void applyModernButtonStyle(QPushButton *button, const QString &color = "#0078D4");
     void updateStatisticsCharts();
+    void generatePDF(const QString &fileName, const QString &htmlContent); // New PDF generation method
 
     // Main widgets
     QWidget *centralWidget;
@@ -104,6 +111,9 @@ private:
     QPushButton *btnEditClient;
     QPushButton *btnDeleteClient;
     QPushButton *btnRefreshClients;
+    QPushButton *btnExportClientsPDF; // New PDF button for clients
+    QPushButton *btnClientAnalytics; // New analytics button
+    QPushButton *btnClientDetails; // New details button
 
     // Client search
     QFrame *clientSearchFrame;
@@ -137,6 +147,7 @@ private:
     QPushButton *btnEditCommande;
     QPushButton *btnDeleteCommande;
     QPushButton *btnRefreshCommandes;
+    QPushButton *btnExportPDF;
 
     // Commande search
     QGroupBox *commandeSearchGroup;

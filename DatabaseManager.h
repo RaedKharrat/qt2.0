@@ -4,9 +4,9 @@
 #include <QObject>
 #include <QtSql>
 #include <QDateTime>
-#include <QSqlRecord>  // Added missing include
-#include <QSqlQuery>   // Added missing include
-#include <QSqlError>   // Added missing include
+#include <QSqlRecord>
+#include <QSqlQuery>
+#include <QSqlError>
 
 class DatabaseManager : public QObject
 {
@@ -29,6 +29,11 @@ public:
                       const QString &telephone, const QString &adresse);
     bool deleteClient(int id);
 
+    // New client methods
+    QSqlQuery getClientsWithCommandCount();
+    double getTotalRevenueFromClient(int clientId);
+    int getClientCommandCount(int clientId);
+
     // COMMANDE CRUD
     bool addCommande(int idClient, const QDateTime &dateCommande, const QString &statut,
                      double montantTotal, const QString &moyenPaiement, const QString &remarque, qint64 &outId);
@@ -45,6 +50,9 @@ public:
 
     // statistique: commandes par mois
     QSqlQuery ordersPerMonth(int year);
+
+    // Get commands for current month for PDF export
+    QSqlQuery getCommandesThisMonth();
 
 private:
     QSqlDatabase m_db;

@@ -11,6 +11,13 @@
 #include <QFont>
 #include <QLinearGradient>
 #include <QPainter>
+#include <QPrinter>
+#include <QTextDocument>
+#include <QTextCursor>
+#include <QTextTable>
+#include <QFileDialog>
+#include <QDesktopServices>
+#include <QTextStream>
 
 // QtCharts includes
 #include <QBarSet>
@@ -148,7 +155,7 @@ void MainWindow::applyModernButtonStyle(QPushButton *button, const QString &colo
             background-color: #4a4a4a;
             color: #777777;
         }
-    )").arg(color).arg(textColor).arg(hoverColor).arg(pressedColor));
+    )").arg(color, textColor, hoverColor, pressedColor));
 }
 
 void MainWindow::setupUI()
@@ -246,16 +253,25 @@ void MainWindow::setupClientSection()
     btnEditClient = new QPushButton("✏️ Modifier", this);
     btnDeleteClient = new QPushButton("🗑️ Supprimer", this);
     btnRefreshClients = new QPushButton("🔄 Actualiser", this);
+    btnExportClientsPDF = new QPushButton("📄 PDF Clients", this);
+    btnClientAnalytics = new QPushButton("📊 Analytics", this);
+    btnClientDetails = new QPushButton("👁️ Détails", this);
 
     applyModernButtonStyle(btnAddClient, "#00d4aa");
     applyModernButtonStyle(btnEditClient, "#2a7fff");
     applyModernButtonStyle(btnDeleteClient, "#ff4757");
     applyModernButtonStyle(btnRefreshClients, "#6c757d");
+    applyModernButtonStyle(btnExportClientsPDF, "#ff6b35");
+    applyModernButtonStyle(btnClientAnalytics, "#a55eea");
+    applyModernButtonStyle(btnClientDetails, "#00d4aa");
 
     clientButtonLayout->addWidget(btnAddClient);
     clientButtonLayout->addWidget(btnEditClient);
     clientButtonLayout->addWidget(btnDeleteClient);
+    clientButtonLayout->addWidget(btnClientDetails);
+    clientButtonLayout->addWidget(btnClientAnalytics);
     clientButtonLayout->addStretch();
+    clientButtonLayout->addWidget(btnExportClientsPDF);
     clientButtonLayout->addWidget(btnRefreshClients);
 
     // Client Search Frame
@@ -322,8 +338,8 @@ void MainWindow::setupClientSection()
 
     QVBoxLayout *tableLayout = new QVBoxLayout(clientTableGroup);
     clientsTable = new QTableWidget(this);
-    clientsTable->setColumnCount(6);
-    clientsTable->setHorizontalHeaderLabels({"ID", "Nom", "Prénom", "Email", "Téléphone", "Adresse"});
+    clientsTable->setColumnCount(7); // Added command count column
+    clientsTable->setHorizontalHeaderLabels({"ID", "Nom", "Prénom", "Email", "Téléphone", "Adresse", "Nb Commandes"});
     applyModernTableStyle(clientsTable);
     tableLayout->addWidget(clientsTable);
 
@@ -448,6 +464,9 @@ void MainWindow::setupClientSection()
     connect(btnSearchClient, &QPushButton::clicked, this, &MainWindow::searchClients);
     connect(btnSaveClient, &QPushButton::clicked, this, &MainWindow::saveClient);
     connect(btnCancelClient, &QPushButton::clicked, this, &MainWindow::cancelClientEdit);
+    connect(btnExportClientsPDF, &QPushButton::clicked, this, &MainWindow::exportClientsPDF);
+    connect(btnClientAnalytics, &QPushButton::clicked, this, &MainWindow::showClientAnalytics);
+    connect(btnClientDetails, &QPushButton::clicked, this, &MainWindow::showClientDetails);
 
     stackedWidget->addWidget(clientWidget);
 }
@@ -476,16 +495,19 @@ void MainWindow::setupCommandeSection()
     btnEditCommande = new QPushButton("✏️ Modifier", this);
     btnDeleteCommande = new QPushButton("🗑️ Supprimer", this);
     btnRefreshCommandes = new QPushButton("🔄 Actualiser", this);
+    btnExportPDF = new QPushButton("📄 PDF Ce Mois", this);
 
     applyModernButtonStyle(btnAddCommande, "#00d4aa");
     applyModernButtonStyle(btnEditCommande, "#2a7fff");
     applyModernButtonStyle(btnDeleteCommande, "#ff4757");
     applyModernButtonStyle(btnRefreshCommandes, "#6c757d");
+    applyModernButtonStyle(btnExportPDF, "#ff6b35");
 
     commandeButtonLayout->addWidget(btnAddCommande);
     commandeButtonLayout->addWidget(btnEditCommande);
     commandeButtonLayout->addWidget(btnDeleteCommande);
     commandeButtonLayout->addStretch();
+    commandeButtonLayout->addWidget(btnExportPDF);
     commandeButtonLayout->addWidget(btnRefreshCommandes);
 
     // Commande Search Group
@@ -743,6 +765,7 @@ void MainWindow::setupCommandeSection()
     connect(btnRefreshCommandes, &QPushButton::clicked, this, &MainWindow::loadCommandesTable);
     connect(btnSaveCommande, &QPushButton::clicked, this, &MainWindow::saveCommande);
     connect(btnCancelCommande, &QPushButton::clicked, this, &MainWindow::cancelCommandeEdit);
+    connect(btnExportPDF, &QPushButton::clicked, this, &MainWindow::exportCommandesPDF);
 
     stackedWidget->addWidget(commandeWidget);
 }
@@ -894,10 +917,10 @@ void MainWindow::updateStatisticsCharts()
     }
 
     // Style the barsets
-    ordersSet->setColor(QColor("#2a7fff"));
-    ordersSet->setBorderColor(QColor("#1a5fcc"));
-    revenueSet->setColor(QColor("#00d4aa"));
-    revenueSet->setBorderColor(QColor("#00b894"));
+    ordersSet->setColor(QColor(42, 127, 255));
+    ordersSet->setBorderColor(QColor(26, 95, 204));
+    revenueSet->setColor(QColor(0, 212, 170));
+    revenueSet->setBorderColor(QColor(0, 184, 148));
 
     // Create orders chart
     QBarSeries *ordersSeries = new QBarSeries();
@@ -910,16 +933,16 @@ void MainWindow::updateStatisticsCharts()
 
     // Style orders chart
     ordersChart->setTheme(QChart::ChartThemeDark);
-    ordersChart->setBackgroundBrush(QBrush(QColor("#1a1a2e")));
-    ordersChart->setTitleBrush(QBrush(QColor("#ffffff")));
-    ordersChart->legend()->setLabelColor(QColor("#e0e0e0"));
+    ordersChart->setBackgroundBrush(QBrush(QColor(26, 26, 46)));
+    ordersChart->setTitleBrush(QBrush(QColor(255, 255, 255)));
+    ordersChart->legend()->setLabelColor(QColor(224, 224, 224));
 
     QBarCategoryAxis *axisXOrders = new QBarCategoryAxis();
     axisXOrders->append(months);
-    axisXOrders->setLabelsColor(QColor("#e0e0e0"));
+    axisXOrders->setLabelsColor(QColor(224, 224, 224));
 
     QValueAxis *axisYOrders = new QValueAxis();
-    axisYOrders->setLabelsColor(QColor("#e0e0e0"));
+    axisYOrders->setLabelsColor(QColor(224, 224, 224));
 
     ordersChart->addAxis(axisXOrders, Qt::AlignBottom);
     ordersChart->addAxis(axisYOrders, Qt::AlignLeft);
@@ -939,16 +962,16 @@ void MainWindow::updateStatisticsCharts()
 
     // Style revenue chart
     revenueChart->setTheme(QChart::ChartThemeDark);
-    revenueChart->setBackgroundBrush(QBrush(QColor("#1a1a2e")));
-    revenueChart->setTitleBrush(QBrush(QColor("#ffffff")));
-    revenueChart->legend()->setLabelColor(QColor("#e0e0e0"));
+    revenueChart->setBackgroundBrush(QBrush(QColor(26, 26, 46)));
+    revenueChart->setTitleBrush(QBrush(QColor(255, 255, 255)));
+    revenueChart->legend()->setLabelColor(QColor(224, 224, 224));
 
     QBarCategoryAxis *axisXRevenue = new QBarCategoryAxis();
     axisXRevenue->append(months);
-    axisXRevenue->setLabelsColor(QColor("#e0e0e0"));
+    axisXRevenue->setLabelsColor(QColor(224, 224, 224));
 
     QValueAxis *axisYRevenue = new QValueAxis();
-    axisYRevenue->setLabelsColor(QColor("#e0e0e0"));
+    axisYRevenue->setLabelsColor(QColor(224, 224, 224));
 
     revenueChart->addAxis(axisXRevenue, Qt::AlignBottom);
     revenueChart->addAxis(axisYRevenue, Qt::AlignLeft);
@@ -962,10 +985,10 @@ void MainWindow::updateStatisticsCharts()
                                   "• Total Commandes: %2\n"
                                   "• Chiffre d'Affaires Total: %3 €\n"
                                   "• Moyenne par Commande: %4 €")
-                              .arg(currentYear)
-                              .arg(totalOrders)
-                              .arg(QString::number(totalRevenue, 'f', 2))
-                              .arg(totalOrders > 0 ? QString::number(totalRevenue / totalOrders, 'f', 2) : "0.00");
+                              .arg(QString::number(currentYear),
+                                   QString::number(totalOrders),
+                                   QString::number(totalRevenue, 'f', 2),
+                                   totalOrders > 0 ? QString::number(totalRevenue / totalOrders, 'f', 2) : "0.00");
 
     statsSummary->setText(summaryText);
 }
@@ -998,7 +1021,7 @@ void MainWindow::showStatisticsSection()
 // Client methods
 void MainWindow::loadClientsTable()
 {
-    QSqlQuery query("SELECT * FROM client ORDER BY nom, prenom", dbManager->getDatabase());
+    QSqlQuery query = dbManager->getClientsWithCommandCount();
     clientsTable->setRowCount(0);
 
     int row = 0;
@@ -1010,6 +1033,7 @@ void MainWindow::loadClientsTable()
         clientsTable->setItem(row, 3, new QTableWidgetItem(query.value("email").toString()));
         clientsTable->setItem(row, 4, new QTableWidgetItem(query.value("telephone").toString()));
         clientsTable->setItem(row, 5, new QTableWidgetItem(query.value("adresse").toString()));
+        clientsTable->setItem(row, 6, new QTableWidgetItem(query.value("nb_commandes").toString()));
         row++;
     }
 }
@@ -1074,7 +1098,10 @@ void MainWindow::searchClients()
     QString searchText = txtSearchClient->text().trimmed();
     QString filter = searchText.isEmpty() ? "" : "%" + searchText + "%";
 
-    QString sql = "SELECT * FROM client WHERE nom LIKE ? OR prenom LIKE ? OR email LIKE ? ORDER BY nom, prenom";
+    QString sql = "SELECT c.*, COUNT(co.id_commande) as nb_commandes FROM client c LEFT JOIN commande co ON c.id_client = co.id_client "
+                  "WHERE c.nom LIKE ? OR c.prenom LIKE ? OR c.email LIKE ? "
+                  "GROUP BY c.id_client, c.nom, c.prenom, c.email, c.telephone, c.adresse "
+                  "ORDER BY c.nom, c.prenom";
     QSqlQuery query(dbManager->getDatabase());
     query.prepare(sql);
     query.addBindValue(filter.isEmpty() ? "%" : filter);
@@ -1092,6 +1119,7 @@ void MainWindow::searchClients()
             clientsTable->setItem(row, 3, new QTableWidgetItem(query.value("email").toString()));
             clientsTable->setItem(row, 4, new QTableWidgetItem(query.value("telephone").toString()));
             clientsTable->setItem(row, 5, new QTableWidgetItem(query.value("adresse").toString()));
+            clientsTable->setItem(row, 6, new QTableWidgetItem(query.value("nb_commandes").toString()));
             row++;
         }
     }
@@ -1151,6 +1179,162 @@ void MainWindow::populateClientForm(const QSqlRecord &record)
     txtClientEmail->setText(record.value("email").toString());
     txtClientTelephone->setText(record.value("telephone").toString());
     txtClientAdresse->setText(record.value("adresse").toString());
+}
+
+// New client methods
+void MainWindow::exportClientsPDF()
+{
+    QSqlQuery query = dbManager->getClientsWithCommandCount();
+
+    if (!query.isActive()) {
+        QMessageBox::critical(this, "Erreur", "Impossible de récupérer les clients: " + query.lastError().text());
+        return;
+    }
+
+    // Ask for save location
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter PDF Clients",
+                                                    "liste_clients.pdf",
+                                                    "Fichiers PDF (*.pdf)");
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    // Create HTML content
+    QString html;
+    html += "<html><head><style>";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; }";
+    html += "h1 { color: #2a7fff; text-align: center; }";
+    html += "h2 { color: #333; border-bottom: 2px solid #2a7fff; padding-bottom: 5px; }";
+    html += "table { width: 100%; border-collapse: collapse; margin: 20px 0; }";
+    html += "th { background-color: #2a7fff; color: white; padding: 10px; text-align: left; }";
+    html += "td { padding: 8px; border: 1px solid #ddd; }";
+    html += "tr:nth-child(even) { background-color: #f2f2f2; }";
+    html += ".summary { background-color: #e8f4ff; padding: 15px; border-radius: 5px; margin: 20px 0; }";
+    html += ".total { font-weight: bold; color: #2a7fff; }";
+    html += "</style></head><body>";
+
+    // Header
+    html += "<h1>Liste des Clients</h1>";
+    html += "<p>Généré le: " + QDateTime::currentDateTime().toString("dd/MM/yyyy à HH:mm") + "</p>";
+
+    // Summary
+    int totalClients = 0;
+    int totalCommands = 0;
+
+    // First pass to calculate totals
+    QSqlQuery countQuery = dbManager->getClientsWithCommandCount();
+    while (countQuery.next()) {
+        totalClients++;
+        totalCommands += countQuery.value("nb_commandes").toInt();
+    }
+
+    html += "<div class='summary'>";
+    html += "<h2>Résumé</h2>";
+    html += "<p>Total des clients: <span class='total'>" + QString::number(totalClients) + "</span></p>";
+    html += "<p>Total des commandes: <span class='total'>" + QString::number(totalCommands) + "</span></p>";
+    html += "<p>Moyenne par client: <span class='total'>" + (totalClients > 0 ? QString::number(static_cast<double>(totalCommands) / totalClients, 'f', 1) : "0") + "</span></p>";
+    html += "</div>";
+
+    // Table header
+    html += "<h2>Détail des Clients</h2>";
+    html += "<table>";
+    html += "<tr>";
+    html += "<th>ID</th>";
+    html += "<th>Nom</th>";
+    html += "<th>Prénom</th>";
+    html += "<th>Email</th>";
+    html += "<th>Téléphone</th>";
+    html += "<th>Adresse</th>";
+    html += "<th>Nb Commandes</th>";
+    html += "</tr>";
+
+    // Table rows
+    while (query.next()) {
+        html += "<tr>";
+        html += "<td>" + query.value("id_client").toString() + "</td>";
+        html += "<td>" + query.value("nom").toString() + "</td>";
+        html += "<td>" + query.value("prenom").toString() + "</td>";
+        html += "<td>" + query.value("email").toString() + "</td>";
+        html += "<td>" + query.value("telephone").toString() + "</td>";
+        html += "<td>" + query.value("adresse").toString() + "</td>";
+        html += "<td>" + query.value("nb_commandes").toString() + "</td>";
+        html += "</tr>";
+    }
+
+    html += "</table>";
+    html += "</body></html>";
+
+    // Generate PDF
+    generatePDF(fileName, html);
+
+    QMessageBox::information(this, "Succès",
+                             QString("PDF généré avec succès!\n"
+                                     "Clients exportés: %1\n"
+                                     "Fichier: %2")
+                                 .arg(QString::number(totalClients),
+                                      fileName));
+}
+
+void MainWindow::showClientAnalytics()
+{
+    QList<QTableWidgetItem*> selected = clientsTable->selectedItems();
+    if (selected.isEmpty()) {
+        QMessageBox::warning(this, "Attention", "Veuillez sélectionner un client");
+        return;
+    }
+
+    int row = selected.first()->row();
+    int clientId = clientsTable->item(row, 0)->text().toInt();
+    QString clientName = clientsTable->item(row, 1)->text() + " " + clientsTable->item(row, 2)->text();
+
+    int commandCount = dbManager->getClientCommandCount(clientId);
+    double totalRevenue = dbManager->getTotalRevenueFromClient(clientId);
+    double averageOrder = commandCount > 0 ? totalRevenue / commandCount : 0;
+
+    QString analytics = QString("📊 Analytics Client: %1\n\n"
+                                "• Nombre de commandes: %2\n"
+                                "• Chiffre d'affaires total: %3 €\n"
+                                "• Moyenne par commande: %4 €\n"
+                                "• Client depuis: %5")
+                            .arg(clientName,
+                                 QString::number(commandCount),
+                                 QString::number(totalRevenue, 'f', 2),
+                                 QString::number(averageOrder, 'f', 2),
+                                 "N/A"); // You could add creation date to client table
+
+    QMessageBox::information(this, "Analytics Client", analytics);
+}
+
+void MainWindow::showClientDetails()
+{
+    QList<QTableWidgetItem*> selected = clientsTable->selectedItems();
+    if (selected.isEmpty()) {
+        QMessageBox::warning(this, "Attention", "Veuillez sélectionner un client");
+        return;
+    }
+
+    int row = selected.first()->row();
+    int clientId = clientsTable->item(row, 0)->text().toInt();
+
+    QSqlRecord record;
+    if (dbManager->getClient(clientId, record)) {
+        QString details = QString("👤 Détails Client\n\n"
+                                  "ID: %1\n"
+                                  "Nom: %2\n"
+                                  "Prénom: %3\n"
+                                  "Email: %4\n"
+                                  "Téléphone: %5\n"
+                                  "Adresse: %6")
+                              .arg(record.value("id_client").toString(),
+                                   record.value("nom").toString(),
+                                   record.value("prenom").toString(),
+                                   record.value("email").toString(),
+                                   record.value("telephone").toString(),
+                                   record.value("adresse").toString());
+
+        QMessageBox::information(this, "Détails Client", details);
+    }
 }
 
 // Commande methods
@@ -1248,10 +1432,127 @@ void MainWindow::searchCommandes()
         commandesTable->setItem(row, 3, new QTableWidgetItem(query.value("statut").toString()));
         commandesTable->setItem(row, 4, new QTableWidgetItem(
                                             QString::number(query.value("montant_total").toDouble(), 'f', 2) + " €"));
-        commandesTable->setItem(row, 5, new QTableWidgetItem("")); // Placeholder for moyen_paiement
-        commandesTable->setItem(row, 6, new QTableWidgetItem("")); // Placeholder for remarque
+        // FIXED: Add moyen_paiement and remarque to the table
+        commandesTable->setItem(row, 5, new QTableWidgetItem(query.value("moyen_paiement").toString()));
+        commandesTable->setItem(row, 6, new QTableWidgetItem(query.value("remarque").toString()));
         row++;
     }
+}
+
+void MainWindow::exportCommandesPDF()
+{
+    // Get commands for current month
+    QSqlQuery query = dbManager->getCommandesThisMonth();
+
+    if (!query.isActive()) {
+        QMessageBox::critical(this, "Erreur", "Impossible de récupérer les commandes du mois: " + query.lastError().text());
+        return;
+    }
+
+    // Ask for save location
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter PDF",
+                                                    QString("commandes_%1_%2.pdf")
+                                                        .arg(QDate::currentDate().month())
+                                                        .arg(QDate::currentDate().year()),
+                                                    "Fichiers PDF (*.pdf)");
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    // Create HTML content
+    QString html;
+    html += "<html><head><style>";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; }";
+    html += "h1 { color: #2a7fff; text-align: center; }";
+    html += "h2 { color: #333; border-bottom: 2px solid #2a7fff; padding-bottom: 5px; }";
+    html += "table { width: 100%; border-collapse: collapse; margin: 20px 0; }";
+    html += "th { background-color: #2a7fff; color: white; padding: 10px; text-align: left; }";
+    html += "td { padding: 8px; border: 1px solid #ddd; }";
+    html += "tr:nth-child(even) { background-color: #f2f2f2; }";
+    html += ".summary { background-color: #e8f4ff; padding: 15px; border-radius: 5px; margin: 20px 0; }";
+    html += ".total { font-weight: bold; color: #2a7fff; }";
+    html += "</style></head><body>";
+
+    // Header
+    html += "<h1>Rapport des Commandes - " + QDate::currentDate().toString("MMMM yyyy") + "</h1>";
+    html += "<p>Généré le: " + QDateTime::currentDateTime().toString("dd/MM/yyyy à HH:mm") + "</p>";
+
+    // Summary
+    int totalCommandes = 0;
+    double totalMontant = 0.0;
+    QMap<QString, int> statutsCount;
+
+    // First pass to calculate totals
+    QSqlQuery countQuery = dbManager->getCommandesThisMonth();
+    while (countQuery.next()) {
+        totalCommandes++;
+        totalMontant += countQuery.value("montant_total").toDouble();
+        QString statut = countQuery.value("statut").toString();
+        statutsCount[statut]++;
+    }
+
+    html += "<div class='summary'>";
+    html += "<h2>Résumé</h2>";
+    html += "<p>Total des commandes: <span class='total'>" + QString::number(totalCommandes) + "</span></p>";
+    html += "<p>Chiffre d'affaires total: <span class='total'>" + QString::number(totalMontant, 'f', 2) + " €</span></p>";
+    html += "<p>Répartition par statut:</p><ul>";
+    for (auto it = statutsCount.begin(); it != statutsCount.end(); ++it) {
+        html += "<li>" + it.key() + ": " + QString::number(it.value()) + "</li>";
+    }
+    html += "</ul></div>";
+
+    // Table header
+    html += "<h2>Détail des Commandes</h2>";
+    html += "<table>";
+    html += "<tr>";
+    html += "<th>ID</th>";
+    html += "<th>Client</th>";
+    html += "<th>Date</th>";
+    html += "<th>Statut</th>";
+    html += "<th>Montant</th>";
+    html += "<th>Paiement</th>";
+    html += "<th>Remarque</th>";
+    html += "</tr>";
+
+    // Table rows
+    while (query.next()) {
+        html += "<tr>";
+        html += "<td>" + query.value("id_commande").toString() + "</td>";
+        html += "<td>" + query.value("prenom").toString() + " " + query.value("nom").toString() + "</td>";
+        html += "<td>" + query.value("date_commande").toDateTime().toString("dd/MM/yyyy HH:mm") + "</td>";
+        html += "<td>" + query.value("statut").toString() + "</td>";
+        html += "<td>" + QString::number(query.value("montant_total").toDouble(), 'f', 2) + " €</td>";
+        html += "<td>" + query.value("moyen_paiement").toString() + "</td>";
+        html += "<td>" + query.value("remarque").toString() + "</td>";
+        html += "</tr>";
+    }
+
+    html += "</table>";
+    html += "</body></html>";
+
+    // Generate PDF
+    generatePDF(fileName, html);
+
+    QMessageBox::information(this, "Succès",
+                             QString("PDF généré avec succès!\n"
+                                     "Commandes exportées: %1\n"
+                                     "Fichier: %2")
+                                 .arg(QString::number(totalCommandes),
+                                      fileName));
+}
+
+void MainWindow::generatePDF(const QString &fileName, const QString &htmlContent)
+{
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(fileName);
+    printer.setPageSize(QPageSize(QPageSize::A4));
+    printer.setPageOrientation(QPageLayout::Portrait);
+
+    QTextDocument document;
+    document.setHtml(htmlContent);
+    document.print(&printer);
 }
 
 void MainWindow::showStatistics()

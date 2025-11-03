@@ -1,7 +1,6 @@
 #include "DatabaseManager.h"
 #include <QDebug>
 
-
 DatabaseManager::DatabaseManager(QObject *parent) : QObject(parent)
 {
     // Change to QODBC since QMYSQL driver is not available
@@ -20,7 +19,6 @@ DatabaseManager::DatabaseManager(QObject *parent) : QObject(parent)
         m_db.setDatabaseName(conn);
     }
 }
-
 
 DatabaseManager::~DatabaseManager()
 {
@@ -113,6 +111,45 @@ bool DatabaseManager::deleteClient(int id)
     return true;
 }
 
+// New client analytics methods
+QSqlQuery DatabaseManager::getClientsWithCommandCount()
+{
+    QSqlQuery q(m_db);
+    QString sql = "SELECT c.*, COUNT(co.id_commande) as nb_commandes "
+                  "FROM client c LEFT JOIN commande co ON c.id_client = co.id_client "
+                  "GROUP BY c.id_client, c.nom, c.prenom, c.email, c.telephone, c.adresse "
+                  "ORDER BY nb_commandes DESC";
+
+    if (!q.exec(sql)) {
+        qWarning() << "getClientsWithCommandCount failed:" << q.lastError().text();
+    }
+    return q;
+}
+
+double DatabaseManager::getTotalRevenueFromClient(int clientId)
+{
+    QSqlQuery q(m_db);
+    q.prepare("SELECT SUM(montant_total) as total_revenue FROM commande WHERE id_client = :clientId");
+    q.bindValue(":clientId", clientId);
+
+    if (q.exec() && q.next()) {
+        return q.value("total_revenue").toDouble();
+    }
+    return 0.0;
+}
+
+int DatabaseManager::getClientCommandCount(int clientId)
+{
+    QSqlQuery q(m_db);
+    q.prepare("SELECT COUNT(*) as command_count FROM commande WHERE id_client = :clientId");
+    q.bindValue(":clientId", clientId);
+
+    if (q.exec() && q.next()) {
+        return q.value("command_count").toInt();
+    }
+    return 0;
+}
+
 // ---- COMMANDE ----
 bool DatabaseManager::addCommande(int idClient, const QDateTime &dateCommande, const QString &statut,
                                   double montantTotal, const QString &moyenPaiement, const QString &remarque, qint64 &outId)
@@ -193,7 +230,7 @@ QSqlQuery DatabaseManager::searchCommandes(const QString &clientNameLike,
 {
     QSqlQuery q(m_db);
     QString sql =
-        "SELECT c.id_client, c.nom, c.prenom, co.id_commande, co.date_commande, co.statut, co.montant_total "
+        "SELECT c.id_client, c.nom, c.prenom, co.id_commande, co.date_commande, co.statut, co.montant_total, co.moyen_paiement, co.remarque "
         "FROM client c JOIN commande co ON c.id_client = co.id_client "
         "WHERE (:name IS NULL OR c.nom LIKE :name) "
         "AND (:statut IS NULL OR co.statut = :statut) "
@@ -245,5 +282,27 @@ QSqlQuery DatabaseManager::ordersPerMonth(int year)
     q.prepare(sql);
     q.bindValue(":year", year);
     if (!q.exec()) qWarning() << "ordersPerMonth failed:" << q.lastError().text();
+    return q;
+}
+
+QSqlQuery DatabaseManager::getCommandesThisMonth()
+{
+    QSqlQuery q(m_db);
+    QDate currentDate = QDate::currentDate();
+    QDate firstDayOfMonth(currentDate.year(), currentDate.month(), 1);
+    QDate lastDayOfMonth = firstDayOfMonth.addMonths(1).addDays(-1);
+
+    QString sql = "SELECT c.id_client, c.nom, c.prenom, co.id_commande, co.date_commande, co.statut, co.montant_total, co.moyen_paiement, co.remarque "
+                  "FROM client c JOIN commande co ON c.id_client = co.id_client "
+                  "WHERE co.date_commande BETWEEN :startDate AND :endDate "
+                  "ORDER BY co.date_commande DESC";
+
+    q.prepare(sql);
+    q.bindValue(":startDate", QDateTime(firstDayOfMonth, QTime(0, 0, 0)));
+    q.bindValue(":endDate", QDateTime(lastDayOfMonth, QTime(23, 59, 59)));
+
+    if (!q.exec()) {
+        qWarning() << "getCommandesThisMonth failed:" << q.lastError().text();
+    }
     return q;
 }
