@@ -17,6 +17,18 @@
 #include <QHeaderView>
 #include <QFormLayout>
 #include <QSqlRecord>
+#include <QGroupBox>
+#include <QFrame>
+#include <QScrollArea>
+#include <QSpacerItem>
+
+// QtCharts includes
+#include <QtCharts>
+#include <QChartView>
+#include <QBarSet>
+#include <QBarSeries>
+#include <QValueAxis>
+#include <QBarCategoryAxis>
 
 // Forward declaration
 class DatabaseManager;
@@ -32,6 +44,7 @@ public:
 private slots:
     void showClientSection();
     void showCommandeSection();
+    void showStatisticsSection();
 
     // Client slots
     void addNewClient();
@@ -56,10 +69,14 @@ private:
     void setupUI();
     void setupClientSection();
     void setupCommandeSection();
+    void setupStatisticsSection();
     void clearClientForm();
     void clearCommandeForm();
     void populateClientForm(const QSqlRecord &record);
     void populateCommandeForm(const QSqlRecord &record);
+    void applyModernTableStyle(QTableWidget *table);
+    void applyModernButtonStyle(QPushButton *button, const QString &color = "#0078D4");
+    void updateStatisticsCharts();
 
     // Main widgets
     QWidget *centralWidget;
@@ -67,23 +84,39 @@ private:
     QHBoxLayout *headerLayout;
     QStackedWidget *stackedWidget;
 
-    // Header buttons
+    // Header
+    QFrame *headerFrame;
+    QLabel *headerTitle;
+
+    // Navigation buttons
     QPushButton *btnClients;
     QPushButton *btnCommandes;
+    QPushButton *btnStatistics;
 
     // Client section widgets
     QWidget *clientWidget;
     QVBoxLayout *clientLayout;
+
+    // Client controls
+    QFrame *clientControlFrame;
     QHBoxLayout *clientButtonLayout;
     QPushButton *btnAddClient;
     QPushButton *btnEditClient;
     QPushButton *btnDeleteClient;
-    QPushButton *btnSearchClient;
+    QPushButton *btnRefreshClients;
+
+    // Client search
+    QFrame *clientSearchFrame;
+    QHBoxLayout *clientSearchLayout;
     QLineEdit *txtSearchClient;
+    QPushButton *btnSearchClient;
+
+    // Clients table
+    QGroupBox *clientTableGroup;
     QTableWidget *clientsTable;
 
     // Client form widgets
-    QWidget *clientFormWidget;
+    QGroupBox *clientFormGroup;
     QVBoxLayout *clientFormLayout;
     QLineEdit *txtClientNom;
     QLineEdit *txtClientPrenom;
@@ -96,20 +129,31 @@ private:
     // Commande section widgets
     QWidget *commandeWidget;
     QVBoxLayout *commandeLayout;
+
+    // Commande controls
+    QFrame *commandeControlFrame;
     QHBoxLayout *commandeButtonLayout;
     QPushButton *btnAddCommande;
     QPushButton *btnEditCommande;
     QPushButton *btnDeleteCommande;
-    QPushButton *btnSearchCommande;
-    QPushButton *btnStatsCommande;
+    QPushButton *btnRefreshCommandes;
+
+    // Commande search
+    QGroupBox *commandeSearchGroup;
+    QHBoxLayout *commandeSearchLayout;
     QLineEdit *txtSearchCommande;
     QComboBox *cmbStatutFilter;
     QDateEdit *dateFromFilter;
     QDateEdit *dateToFilter;
+    QPushButton *btnSearchCommande;
+    QPushButton *btnClearFilter;
+
+    // Commandes table
+    QGroupBox *commandeTableGroup;
     QTableWidget *commandesTable;
 
     // Commande form widgets
-    QWidget *commandeFormWidget;
+    QGroupBox *commandeFormGroup;
     QVBoxLayout *commandeFormLayout;
     QComboBox *cmbClient;
     QDateEdit *dateCommande;
@@ -119,6 +163,13 @@ private:
     QTextEdit *txtRemarque;
     QPushButton *btnSaveCommande;
     QPushButton *btnCancelCommande;
+
+    // Statistics section
+    QWidget *statisticsWidget;
+    QVBoxLayout *statisticsLayout;
+    QChartView *chartViewOrders;
+    QChartView *chartViewRevenue;
+    QLabel *statsSummary;
 
     DatabaseManager *dbManager;
     int currentClientId;
